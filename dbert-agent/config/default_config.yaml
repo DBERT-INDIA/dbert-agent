@@ -1,0 +1,36 @@
+providers:
+  lmstudio-local:
+    type: local
+    base_url: "http://localhost:1234/v1"
+    enabled: true
+  openai:
+    type: cloud
+    enabled: false
+    api_key_ref: "keystore:openai"
+  anthropic:
+    type: cloud
+    enabled: false
+    api_key_ref: "keystore:anthropic"
+  gemini:
+    type: cloud
+    enabled: false
+    api_key_ref: "keystore:gemini"
+default_provider_order: ["lmstudio-local", "openai", "anthropic", "gemini"]
+
+ui_prefs:
+  theme: "dark"
+  agent_manager_width_px: 280
+  font_scale: 1.0
+
+hardware:
+  auto_detect: true
+  whisper_model_size: "auto"
+  piper_quality: "auto"
+  max_parallel_jobs: "auto"
+
+voice:
+  default_mode: "text"
+  wake_word_enabled: false
+
+permissions:
+  default_level: "ask_every_time"

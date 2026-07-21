@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# App runtime data (local-only, per DBERT's local-first design)
+.dbert/
+*.log
+pytest.log
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Secrets - never commit real keys
+.env
+*.pem
