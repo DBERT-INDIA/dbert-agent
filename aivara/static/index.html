@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aivara – Agentic Workflow Suite</title>
+<style>
+:root{--bg:#f3f6f4;--ink:#14231f;--mut:#5b6b66;--card:#fff;--line:#d5dfdb;--acc:#0f766e;--bad:#b42318;--ok:#067647}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1816;--ink:#e6efec;--mut:#93a6a0;--card:#15241f;--line:#26403a;--acc:#2dd4bf;--bad:#f97066;--ok:#47cd89}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Segoe UI",system-ui,sans-serif}
+header{padding:28px 24px 8px;max-width:1080px;margin:auto}h1{margin:0;font-size:2rem;letter-spacing:-.02em}
+header p{margin:.3rem 0 0;color:var(--mut);max-width:60ch}
+main{max-width:1080px;margin:auto;padding:16px 24px 48px;display:grid;gap:20px;grid-template-columns:1fr 1fr}
+@media(max-width:820px){main{grid-template-columns:1fr}}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px}
+h2{margin:0 0 10px;font-size:1.05rem}label{display:block;font-size:.85rem;color:var(--mut);margin:8px 0 3px}
+input,textarea{width:100%;padding:9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:14px ui-monospace,Consolas,monospace}
+textarea{min-height:230px;resize:vertical}button{margin-top:10px;padding:9px 16px;border:0;border-radius:6px;background:var(--acc);color:#fff;font-weight:600;cursor:pointer}
+@media(prefers-color-scheme:dark){button{color:#04211d}}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.wf{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}.wf:first-of-type{border-top:0}
+.wf button{margin:0 0 0 4px;padding:5px 10px}.ok{color:var(--ok)}.bad{color:var(--bad)}
+pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:13px;max-height:320px;overflow:auto}
+#msg{min-height:1.4em;margin-top:8px;font-size:.9rem}.full{grid-column:1/-1}
+</style></head><body>
+<header><h1>Aivara</h1><p>Chain AI tools into automated workflows. Define the steps, run them, and read the step-by-step log.</p></header>
+<main>
+<section><h2>Connection</h2><label for="key">API key</label><input id="key" type="password" value="dev-key-change-me" autocomplete="off">
+<h2 style="margin-top:18px">New workflow</h2><label for="name">Name</label><input id="name" value="Ticket triage">
+<label for="def">Steps (JSON)</label><textarea id="def" spellcheck="false"></textarea>
+<button id="save">Save workflow</button><div id="msg" role="status"></div></section>
+<section><h2>Saved workflows</h2><div id="list"><p style="color:var(--mut)">No workflows yet. Save one on the left.</p></div></section>
+<section class="full"><h2>Latest run</h2><pre id="out">Run a workflow to see its output here.</pre></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+$('def').value=JSON.stringify([
+ {id:"ticket",tool:"extract_entities",params:{text:"Urgent: payment error, contact ana@example.com, order 4821"}},
+ {id:"mood",tool:"sentiment",params:{text:"The checkout is broken and I am angry"}},
+ {id:"route",tool:"route_ticket",params:{text:"payment error refund"},depends_on:["mood"]},
+ {id:"reply",tool:"template",params:{template:"Routing to {team} ({mood}).",values:{team:"$route.team",mood:"$mood.label"}},depends_on:["route","mood"]}
+],null,2);
+async function api(path,opt={}){
+ const r=await fetch('/api'+path,{...opt,headers:{'Content-Type':'application/json','X-API-Key':$('key').value}});
+ const body=r.status===204?{}:await r.json();return{status:r.status,body};
+}
+function say(t,bad){$('msg').textContent=t;$('msg').className=bad?'bad':'ok'}
+async function refresh(){
+ const {status,body}=await api('/workflows');const box=$('list');
+ if(status!==200){box.textContent=body.error||'Could not load workflows';return}
+ box.innerHTML='';if(!body.length){box.innerHTML='<p style="color:var(--mut)">No workflows yet. Save one on the left.</p>';return}
+ body.forEach(w=>{const d=document.createElement('div');d.className='wf';
+  const s=document.createElement('span');s.textContent=w.name+' ('+w.definition.length+' steps)';d.append(s);
+  const run=document.createElement('button');run.textContent='Run';run.onclick=()=>runWf(w.id);
+  const del=document.createElement('button');del.textContent='Delete';del.className='ghost';del.onclick=async()=>{await api('/workflows/'+w.id,{method:'DELETE'});refresh()};
+  d.append(run,del);box.append(d)});
+}
+async function runWf(id){const {body}=await api('/workflows/'+id+'/run',{method:'POST'});$('out').textContent=JSON.stringify(body,null,2)}
+$('save').onclick=async()=>{let steps;
+ try{steps=JSON.parse($('def').value)}catch(e){return say('Steps must be valid JSON: '+e.message,true)}
+ const {status,body}=await api('/workflows',{method:'POST',body:JSON.stringify({name:$('name').value,steps})});
+ if(status===201){say('Saved "'+body.name+'".');refresh()}else say(body.error||'Save failed',true)};
+refresh();
+</script></body></html>
